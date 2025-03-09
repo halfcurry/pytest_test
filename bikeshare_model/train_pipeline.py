@@ -10,7 +10,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.metrics import mean_squared_error, r2_score
 
 from bikeshare_model.config.core import config
-from bikeshare_model.pipeline import bikeshare_pipe
+from bikeshare_model.pipeline import pipeline
 from bikeshare_model.processing.data_manager import load_dataset, save_pipeline
 
 def run_training() -> None:
@@ -33,17 +33,16 @@ def run_training() -> None:
     )
 
     # Pipeline fitting
-    bikeshare_pipe.fit(X_train,y_train)
-    y_pred = bikeshare_pipe.predict(X_test)
+    pipeline.fit(X_train,y_train)
+    y_pred = pipeline.predict(X_test)
     # print("Accuracy(in %):", accuracy_score(y_test, y_pred)*100)
     mse = mean_squared_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
 
     print(f"Mean Squared Error: {mse}")
     print(f"R-squared: {r2}")
-
     # persist trained model
-    save_pipeline(pipeline_to_persist= bikeshare_pipe)
+    save_pipeline(pipeline_to_persist=pipeline)
     # printing the score
     
 if __name__ == "__main__":
