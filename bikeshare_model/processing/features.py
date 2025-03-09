@@ -5,31 +5,33 @@ import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
 from datetime import datetime
 
+
 class WeekdayImputer(BaseEstimator, TransformerMixin):
+    """ Impute missing values in 'weekday' column by extracting dayname from 'dteday' column """
+
     def __init__(self, date_column='dteday', weekday_column='weekday'):
         self.date_column = date_column
         self.weekday_column = weekday_column
 
+
     def fit(self, X, y=None):
-        # No fitting necessary for this imputer
         return self
 
     def transform(self, X):
         # Find the indices of NaN entries in the weekday column
         nan_indices = X[X[self.weekday_column].isnull()].index
-        
+
         # Extract day names from the date column for these indices
         for idx in nan_indices:
             date_str = X.at[idx, self.date_column]
             date_object = datetime.strptime(date_str, '%Y-%m-%d')
             day_name = date_object.strftime('%A')
-            
+
             # Impute the missing value with the day name
             X.at[idx, self.weekday_column] = day_name[:3]
 
-        # print("Columns after WeekdayImputer", X.columns)
-        
         return X
+
 
 class WeathersitImputer(BaseEstimator, TransformerMixin):
     """ Impute missing values in 'weathersit' column by replacing them with the most frequent category value """
@@ -39,15 +41,15 @@ class WeathersitImputer(BaseEstimator, TransformerMixin):
         self.most_frequent = None
 
     def fit(self, X, y=None):
-        # Determine the most frequent category in the specified column
+        print(self.column)
         self.most_frequent = X[self.column].mode()[0]
         return self
 
     def transform(self, X):
         # Fill missing values with the most frequent category
         X[self.column] = X[self.column].fillna(self.most_frequent)
-        # print("Columns after WeathersitImputer", X.columns)
         return X
+
 
 class Mapper(BaseEstimator, TransformerMixin):
     """
@@ -55,9 +57,9 @@ class Mapper(BaseEstimator, TransformerMixin):
     Treat column as Ordinal categorical variable, and assign values accordingly
     """
 
-    def __init__(self, variables=None, mappings=None):
-        # Default mappings
-        default_mappings = {
+    def __init__(self):
+        # Define mappings for each column
+        self.mappings = {
             'yr': {2011: 0, 2012: 1},
             'mnth': {i: i for i in range(1, 13)},
             'season': {'spring': 1, 'summer': 2, 'fall': 3, 'winter': 4},
@@ -72,9 +74,6 @@ class Mapper(BaseEstimator, TransformerMixin):
             }
         }
 
-        self.variables = variables
-        self.mappings = mappings if mappings is not None else default_mappings
-
     def fit(self, X, y=None):
         # No fitting necessary, mappings are predefined
         return self
@@ -82,31 +81,23 @@ class Mapper(BaseEstimator, TransformerMixin):
     def transform(self, X):
         # Apply mappings to the specified columns
         X_transformed = X.copy()
-        for column in (self.variables or self.mappings.keys()):
+        for column, mapping in self.mappings.items():
             if column in X_transformed.columns:
-                X_transformed[column] = X_transformed[column].map(self.mappings.get(column, {}))
+                X_transformed[column] = X_transformed[column].map(mapping)
         return X_transformed
 
+
 class OutlierHandler(BaseEstimator, TransformerMixin):
-    """
-    Change the outlier values:
-        - to upper-bound, if the value is higher than upper-bound, or
-        - to lower-bound, if the value is lower than lower-bound respectively.
-    """
-    def __init__(self, columns=None, factor=1.5, upper_bound=None, lower_bound=None):
+    def __init__(self, columns=None, factor=1.5):
         """
         Initialize the handler with optional columns and a factor for IQR.
 
         :param columns: List of columns to apply the outlier handling. If None, apply to all numerical columns.
         :param factor: The factor to multiply with IQR to determine bounds. Default is 1.5.
-        :param upper_bound: Optional fixed upper bound for all columns.
-        :param lower_bound: Optional fixed lower bound for all columns.
         """
         self.columns = columns
         self.factor = factor
         self.bounds = {}
-        self.fixed_upper_bound = upper_bound
-        self.fixed_lower_bound = lower_bound
 
     def fit(self, X, y=None):
         # Determine which columns to process
@@ -119,13 +110,6 @@ class OutlierHandler(BaseEstimator, TransformerMixin):
             IQR = Q3 - Q1
             lower_bound = Q1 - self.factor * IQR
             upper_bound = Q3 + self.factor * IQR
-
-            # Use fixed bounds if provided
-            if self.fixed_lower_bound is not None:
-                lower_bound = self.fixed_lower_bound
-            if self.fixed_upper_bound is not None:
-                upper_bound = self.fixed_upper_bound
-
             self.bounds[column] = {'lower': lower_bound, 'upper': upper_bound}
 
         return self
@@ -162,30 +146,25 @@ class WeekdayOneHotEncoder(BaseEstimator, TransformerMixin):
         :param column: The name of the column containing weekday information.
         """
         self.column = column
-        self.categories_ = None
+        self.weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
     def fit(self, X, y=None):
         # Ensure the column exists in the DataFrame
         if self.column is None or self.column not in X.columns:
             raise ValueError(f"Column '{self.column}' must be specified and exist in the DataFrame.")
-        
-        # Determine unique categories in the training data
-        self.categories_ = X[self.column].astype(str).unique()
-        
         return self
 
     def transform(self, X):
         # Check if the column exists
         if self.column not in X.columns:
             raise ValueError(f"Column '{self.column}' does not exist in the DataFrame.")
-        
+        # make sure it is string type
+        X[self.column] = X[self.column].astype(str)
         # Convert the weekday column to one-hot encoded columns
         X_transformed = X.copy()
-        
-        # Cast the column to a categorical type using only the categories seen in fit
-        X_transformed[self.column] = pd.Categorical(X_transformed[self.column], categories=self.categories_)
-        
-        # Perform the one-hot encoding
+        # cast the column to a categorical type
+        X_transformed[self.column] = pd.Categorical(X_transformed[self.column], categories=self.weekdays)
+        # the one hot encoding
         one_hot_encoded = pd.get_dummies(X_transformed[self.column], prefix=self.column)
 
         # Drop the original column and concatenate the new one-hot encoded columns
@@ -207,4 +186,3 @@ class DropColumn(BaseEstimator, TransformerMixin):
             return X.drop(self.column_name, axis=1)
         else:
             return X
-    

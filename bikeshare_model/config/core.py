@@ -1,4 +1,3 @@
-# Path setup, and access the config.yml file, datasets folder & trained models
 import sys
 from pathlib import Path
 file = Path(__file__).resolve()
@@ -18,7 +17,7 @@ ROOT = PACKAGE_ROOT.parent
 CONFIG_FILE_PATH = PACKAGE_ROOT / "config.yml"
 #print(CONFIG_FILE_PATH)
 
-DATASET_DIR = PACKAGE_ROOT / "datasets"
+DATASET_DIR = PACKAGE_ROOT / "dataset"
 TRAINED_MODEL_DIR = PACKAGE_ROOT / "trained_models"
 
 
@@ -39,10 +38,28 @@ class ModelConfig(BaseModel):
 
     target: str
     features: List[str]
-    numeric_cols: List[str] 
-    weekday_col:str 
-    dteday_col:str 
-  
+    unused_fields: List[str]
+    dteday_var: str
+    weathersit_var: str 
+    season_var:str 
+    hr_var:str
+    holiday_var:str
+    weekday_var:str
+    workingday_var:str
+    temp_var:str
+    atemp_var:str
+    hum_var:str
+    windspeed_var:str
+    
+    yr_mappings: Dict[int, int]
+    mnth_mappings: Dict[int, int]
+    #hr_mappings: Dict[int, int]
+    weekday_mappings: Dict[str, int]
+    weathersit_mappings: Dict[str, int]
+    season_mappings: Dict[str, int]
+    holiday_mappings: Dict[str, int]
+    workingday_mappings: Dict[str, int]
+
     test_size:float
     random_state: int
     n_estimators: int

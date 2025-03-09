@@ -9,6 +9,8 @@ import joblib
 import pandas as pd
 import typing as t
 from sklearn.pipeline import Pipeline
+import datetime
+import numpy as np
 
 from bikeshare_model import __version__ as _version
 from bikeshare_model.config.core import DATASET_DIR, TRAINED_MODEL_DIR, config
@@ -16,18 +18,38 @@ from bikeshare_model.config.core import DATASET_DIR, TRAINED_MODEL_DIR, config
 
 ##  Pre-Pipeline Preparation
 
-# 1. Extracts the title (Mr, Ms, etc) from the name variable
 def extract_year_month(df):
     year = df['dteday'].apply(lambda x: int(x.split('-')[0]))
     month = df['dteday'].apply(lambda x: int(x.split('-')[1]))
     return year, month
+""""
+def convert_to_24_hour(time_str):
+    if 'am' in time_str:
+        hour = int(time_str.replace('am', '').strip())
+        return hour if hour != 12 else 0  # Convert 12am to 0
+    elif 'pm' in time_str:
+        hour = int(time_str.replace('pm', '').strip())
+        return hour + 12 if hour != 12 else 12
+"""
 
 def pre_pipeline_preparation(*, data_frame: pd.DataFrame) -> pd.DataFrame:
 
     data_frame['year'] = extract_year_month(data_frame)[0]
     data_frame['month'] = extract_year_month(data_frame)[1]
+#    data_frame['hr'] = data_frame['hr'].apply(convert_to_24_hour)
+    
+    numeric_cols = data_frame.select_dtypes(include=np.number).columns.tolist()
+    categorical_cols = data_frame.select_dtypes(exclude=np.number).columns.tolist()
 
+    #data_frame['Has_cabin']=data_frame['Cabin'].apply(f1)               #  processing cabin 
+
+    # drop unnecessary variables
+    unused_fields = [field for field in config.model_config_.unused_fields if field in data_frame.columns]
+    data_frame.drop(labels=unused_fields, axis=1, inplace=True)
+    
     return data_frame
+
+
 
 def load_raw_dataset(*, file_name: str) -> pd.DataFrame:
     dataframe = pd.read_csv(Path(f"{DATASET_DIR}/{file_name}"))
